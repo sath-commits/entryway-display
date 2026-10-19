@@ -142,8 +142,7 @@ function computeStates(evs, nowMs, ctx) {
   return states;
 }
 function listFit(count, basePx) {
-  if (count <= 5) return { px: basePx, compact: false };
-  return { px: Math.max(13, Math.round(basePx * 5.2 / count)), compact: count > 6 };
+  return { px: basePx, compact: count > 5 };
 }
 function dayEventsSig(evs, nowMs, ctx) {
   var states = computeStates(evs, nowMs, ctx);
@@ -152,18 +151,25 @@ function dayEventsSig(evs, nowMs, ctx) {
   return parts.join("~");
 }
 function eventRowHtml(ev, eventPx, state, compact) {
-  var padY = compact ? 4 : 8;
+  var padY = compact ? 5 : 8;
   var done = state === "done";
-  var loc = "";
-  if (ev.location) {
-    loc = '<span style="font-size:' + Math.round(eventPx * 0.8) + 'px;color:var(--dim);margin-left:12px">' + esc(ev.location.split("\n")[0]) + "</span>";
+  var timeW = Math.round(eventPx * 4.9);
+  var timeCell;
+  if (ev.allDay) {
+    timeCell = '<span style="display:inline-block;width:' + timeW + 'px;margin-right:12px;font-size:' + kickerPx(eventPx) + 'px;font-weight:600;letter-spacing:0.08em;color:var(--dim);vertical-align:top;padding-top:4px">ALL DAY</span>';
+  } else {
+    timeCell = '<span style="display:inline-block;width:' + timeW + 'px;margin-right:12px;font-size:' + eventPx + 'px;font-weight:700;color:' + (done ? "var(--dim)" : "var(--accent)") + ';white-space:nowrap;vertical-align:top">' + esc(formatTimeOfDay(ev.start)) + "</span>";
   }
-  var inner =
-    '<span style="display:inline-block;min-width:21%;font-size:' + eventPx + 'px;font-weight:700;color:' + (done ? "var(--dim)" : "var(--accent)") + '">' + (ev.allDay ? "" : esc(formatTimeOfDay(ev.start))) + "</span>" +
-    '<span style="font-size:' + eventPx + 'px;font-weight:600' + (done ? ";color:var(--dim)" : "") + '">' + esc(ev.title) + "</span>" + loc;
+  var main = '<span style="display:inline-block;width:calc(100% - ' + (timeW + 14) + 'px);vertical-align:top">' +
+    '<span style="font-size:' + eventPx + 'px;font-weight:600' + (done ? ";color:var(--dim)" : "") + '">' + esc(ev.title) + "</span>";
+  if (ev.location) {
+    main += '<div style="font-size:' + kickerPx(eventPx) + 'px;color:var(--dim);margin-top:2px">' + esc(ev.location.split("\n")[0]) + "</div>";
+  }
+  main += "</span>";
+  var inner = timeCell + main;
   if (state === "next") {
     return '<div style="background:var(--next-fill);border-left:5px solid var(--accent);border-radius:10px;padding:' + padY + 'px 12px;margin:5px 0;overflow:hidden">' +
-      '<span style="float:right;font-size:' + Math.max(11, Math.round(eventPx * 0.6)) + 'px;font-weight:600;letter-spacing:0.12em;color:var(--accent);margin-left:12px">NEXT</span>' + inner + "</div>";
+      '<span style="float:right;font-size:' + kickerPx(eventPx) + 'px;font-weight:600;letter-spacing:0.12em;color:var(--accent);margin-left:12px">NEXT</span>' + inner + "</div>";
   }
   return '<div style="padding:' + padY + 'px 2px;border-bottom:1px solid var(--row-border)">' + inner + "</div>";
 }
@@ -175,31 +181,72 @@ function eventRowsHtml(evs, nowMs, fit, ctx) {
 }
 
 // ---- Card grid geometry (percent of viewport), per layout. ----
-var GEO = {
-  info: {
-    hero:     { l: 3,    t: 4,  w: 50,   h: 42 },
-    calendar: { l: 3,    t: 49, w: 50,   h: 47 },
-    clock:    { l: 55,   t: 4,  w: 42,   h: 16 },
-    tomorrow: { l: 55,   t: 22, w: 42,   h: 12 },
-    photo:    { l: 55,   t: 36, w: 42,   h: 40 },
-    trio:     { l: 55,   t: 79, w: 42,   h: 17 }
+var VARIANTS = {
+  b: {
+    info: {
+      hero:     { l: 3,  t: 4,  w: 50, h: 42 },
+      calendar: { l: 3,  t: 49, w: 50, h: 47 },
+      clock:    { l: 55, t: 4,  w: 42, h: 15 },
+      tomorrow: { l: 55, t: 21, w: 42, h: 19 },
+      photo:    { l: 55, t: 42, w: 42, h: 34 },
+      trio:     { l: 55, t: 80, w: 42, h: 16 }
+    },
+    evening: {
+      hero:     { l: 3,  t: 4,  w: 50, h: 42 },
+      calendar: { l: 3,  t: 49, w: 50, h: 47 },
+      clock:    { l: 55, t: 4,  w: 42, h: 15 },
+      tomorrow: { l: 55, t: 21, w: 42, h: 19 },
+      photo:    { l: 55, t: 42, w: 42, h: 34 },
+      trio:     { l: 55, t: 80, w: 42, h: 16 }
+    },
+    idle: {
+      photo:    { l: 3,  t: 4,  w: 62, h: 92 },
+      clock:    { l: 68, t: 4,  w: 29, h: 14 },
+      verdict:  { l: 68, t: 20, w: 29, h: 20 },
+      trio:     { l: 68, t: 42, w: 29, h: 22 },
+      calendar: { l: 68, t: 66, w: 29, h: 30 }
+    }
   },
-  idle: {
-    photo:    { l: 3,  t: 4,  w: 62, h: 92 },
-    clock:    { l: 68, t: 4,  w: 29, h: 14 },
-    verdict:  { l: 68, t: 20, w: 29, h: 20 },
-    trio:     { l: 68, t: 42, w: 29, h: 22 },
-    calendar: { l: 68, t: 66, w: 29, h: 30 }
+  a: {
+    info: {
+      photo:    { l: 3,  t: 4,  w: 62, h: 92 },
+      clock:    { l: 68, t: 4,  w: 29, h: 14 },
+      verdict:  { l: 68, t: 20, w: 29, h: 20 },
+      trio:     { l: 68, t: 42, w: 29, h: 22 },
+      calendar: { l: 68, t: 66, w: 29, h: 30 }
+    },
+    evening: {
+      photo:    { l: 3,  t: 4,  w: 62, h: 92 },
+      clock:    { l: 68, t: 4,  w: 29, h: 14 },
+      tomorrow: { l: 68, t: 20, w: 29, h: 20 },
+      trio:     { l: 68, t: 42, w: 29, h: 24 },
+      calendar: { l: 68, t: 68, w: 29, h: 28 }
+    },
+    idle: {
+      photo:    { l: 3,  t: 4,  w: 62, h: 92 },
+      clock:    { l: 68, t: 4,  w: 29, h: 14 },
+      verdict:  { l: 68, t: 20, w: 29, h: 20 },
+      trio:     { l: 68, t: 42, w: 29, h: 22 },
+      calendar: { l: 68, t: 66, w: 29, h: 30 }
+    }
   },
-  evening: {
-    hero:     { l: 3,    t: 4,  w: 50,   h: 42 },
-    calendar: { l: 3,    t: 49, w: 50,   h: 47 },
-    clock:    { l: 55,   t: 4,  w: 42,   h: 16 },
-    tomorrow: { l: 55,   t: 22, w: 42,   h: 12 },
-    photo:    { l: 55,   t: 36, w: 42,   h: 40 },
-    trio:     { l: 55,   t: 79, w: 42,   h: 17 }
+  c: {
+    all: {
+      clock:    { l: 3,  t: 4,  w: 30, h: 15 },
+      verdict:  { l: 35, t: 4,  w: 62, h: 15 },
+      photo:    { l: 3,  t: 21, w: 44, h: 52 },
+      calendar: { l: 49, t: 21, w: 48, h: 52 },
+      trio:     { l: 3,  t: 75, w: 62, h: 21 },
+      side:     { l: 67, t: 75, w: 30, h: 21 }
+    }
   }
 };
+function layoutVariant() {
+  if (typeof FORCE_LAYOUT !== "undefined" && FORCE_LAYOUT) return FORCE_LAYOUT;
+  var m = /[?&]v=([abc])/.exec(window.location.search || "");
+  return m ? m[1] : "a";
+}
+
 function geoStyle(g) {
   return "left:" + g.l + "%;top:" + g.t + "%;width:" + g.w + "%;height:" + g.h + "%";
 }
@@ -224,7 +271,7 @@ function heroCardHtml(g, pt, s) {
       '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:8px">The live forecast hasn\'t loaded yet. This card fills in by itself.</div>';
   } else {
     inner += '<div style="font-size:' + verdictPxFor(cv.v.label, s.verdictPx) + 'px;line-height:1.04;font-weight:600;letter-spacing:-0.01em;text-transform:uppercase;color:' + verdictColor(cv.v) + ';margin-top:12px">' + esc(cv.v.label) + "</div>" +
-      '<div style="font-size:' + Math.round(s.bodyPx * 1.06) + 'px;color:var(--text);margin-top:14px">' + esc(cv.v.detail) + "</div>" +
+      '<div style="font-size:' + s.bodyPx + 'px;color:var(--text);margin-top:14px">' + esc(cv.v.detail) + "</div>" +
       (WX.now && WX.now.tempF !== null ? '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:6px">Now ' + WX.now.tempF + UNIT + (WX.now.cond ? " · " + esc(WX.now.cond) : "") + " · Hi " + WX.now.hiF + "° · Lo " + WX.now.loF + "°" + (CFG.placeName ? " in " + esc(CFG.placeName) : "") + "</div>" : (WX.currentTempF !== null ? '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:6px">Now ' + WX.currentTempF + UNIT + (CFG.placeName ? " in " + esc(CFG.placeName) : "") + "</div>" : ""));
   }
   return cardHtml(g, inner, "card-strong");
@@ -241,7 +288,7 @@ function photoCardHtml(g, s) {
   var inner;
   if (DATA.photos.length > 0) {
     inner = '<div id="photoA" class="photo-layer visible"></div><div id="photoB" class="photo-layer"></div>' +
-      '<div class="photo-caption" id="photoCaption" style="font-size:' + Math.max(12, Math.round(s.bodyPx * 0.72)) + 'px"></div>';
+      '<div class="photo-caption" id="photoCaption" style="font-size:' + Math.max(12, kickerPx(s.bodyPx)) + 'px"></div>';
     return '<div class="card" style="' + geoStyle(g) + ';padding:0">' + inner + "</div>";
   }
   inner = '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);line-height:1.45">' +
@@ -279,25 +326,25 @@ function calendarCardHtml(g, s, sections, stripOnly) {
         (DATA.calendarFound ? "Nothing on the Family calendar." : "Family calendar not found — check the calendar connection.") + "</div>";
     }
   }
-  return cardHtml(g, html);
+  return '<div class="card" style="' + geoStyle(g) + '"><div class="card-inner scroll-inner"><div class="scroll-area">' + html + '</div><div class="scroll-fade"></div></div></div>';
 }
 
 function wxTomorrowCardHtml(g, s) {
   var inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--dim)">Weather now · Tomorrow</div>';
   var n = WX.now;
   if (n && n.tempF !== null) {
-    inner += '<div style="font-size:' + Math.round(s.bodyPx * 1.02) + 'px;margin-top:6px"><span style="font-weight:600">' + n.tempF + UNIT + "</span>" +
+    inner += '<div style="font-size:' + s.bodyPx + 'px;margin-top:6px"><span style="font-weight:600">' + n.tempF + UNIT + "</span>" +
       (n.cond ? ' <span style="color:var(--text)">' + esc(n.cond) + "</span>" : "") +
       '<span style="color:var(--dim)"> · Hi ' + n.hiF + "° · Lo " + n.loF + "°</span></div>";
   }
   var tv = WX.tomorrowMorning;
   if (tv) {
-    inner += '<div style="font-size:' + Math.round(s.bodyPx * 0.98) + 'px;margin-top:6px">Tomorrow: <span style="font-weight:600;text-transform:uppercase;color:' + verdictColor(tv) + '">' + esc(tv.label) + "</span>" +
+    inner += '<div style="font-size:' + s.bodyPx + 'px;margin-top:6px">Tomorrow: <span style="font-weight:600;text-transform:uppercase;color:' + verdictColor(tv) + '">' + esc(tv.label) + "</span>" +
       '<span style="color:var(--dim)"> · ' + esc(tv.detail) + "</span></div>";
   }
   var first = DATA.eventsTomorrow[0];
   if (first) {
-    inner += '<div style="font-size:' + Math.round(s.bodyPx * 0.86) + 'px;color:var(--dim);margin-top:4px">' +
+    inner += '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:4px">' +
       (first.allDay ? "" : '<span style="font-weight:700;color:var(--accent)">' + esc(formatTimeOfDay(first.start)) + "</span> ") +
       esc(first.title) + "</div>";
   }
@@ -313,19 +360,19 @@ function trioPanelInner(kind, pt, s, big) {
     if (big) {
       inner += '<div style="font-size:' + s.factPx + 'px;line-height:1.3;font-weight:600;margin-top:14px">' + esc(f.fact.text) + "</div>";
     } else {
-      inner += '<div class="fact-clamp" style="font-size:' + Math.round(s.bodyPx * 0.94) + 'px;line-height:1.35;margin-top:8px">' + esc(f.fact.text) + "</div>";
+      inner += '<div class="fact-clamp" style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;line-height:1.35;margin-top:8px">' + esc(f.fact.text) + "</div>";
     }
   } else if (kind === "quote") {
     var q = quoteForDate(pt.year, pt.month, pt.day);
     inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--accent)">Quote of the day</div>' +
-      '<div class="' + (big ? "" : "fact-clamp") + '" style="font-size:' + (big ? s.factPx : Math.round(s.bodyPx * 0.94)) + 'px;line-height:1.35;font-weight:600;margin-top:' + (big ? 14 : 8) + 'px">&ldquo;' + esc(q.text) + '&rdquo;</div>' +
+      '<div class="' + (big ? "" : "fact-clamp") + '" style="font-size:' + (big ? s.factPx : Math.round(s.bodyPx * 0.88)) + 'px;line-height:1.35;font-weight:600;margin-top:' + (big ? 14 : 8) + 'px">&ldquo;' + esc(q.text) + '&rdquo;</div>' +
       '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:8px">— ' + esc(q.author) + "</div>";
   } else {
     var w = wordForDate(pt.year, pt.month, pt.day);
     inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--accent)">Word of the day</div>' +
-      '<div style="font-size:' + (big ? Math.round(s.factPx * 1.25) : Math.round(s.bodyPx * 1.3)) + 'px;font-weight:600;margin-top:' + (big ? 12 : 6) + 'px">' + esc(w.word) +
-      '<span style="font-size:' + Math.round(s.bodyPx * 0.8) + 'px;color:var(--dim);font-weight:400;margin-left:10px">' + esc(w.pron) + "</span></div>" +
-      '<div class="' + (big ? "" : "fact-clamp-3") + '" style="font-size:' + (big ? s.bodyPx : Math.round(s.bodyPx * 0.9)) + 'px;line-height:1.35;margin-top:6px">' + esc(w.meaning) + "</div>";
+      '<div style="font-size:' + (big ? s.factPx : s.factPx) + 'px;font-weight:600;margin-top:' + (big ? 12 : 6) + 'px">' + esc(w.word) +
+      '<span style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);font-weight:400;margin-left:10px">' + esc(w.pron) + "</span></div>" +
+      '<div class="' + (big ? "" : "fact-clamp-3") + '" style="font-size:' + (big ? s.bodyPx : Math.round(s.bodyPx * 0.88)) + 'px;line-height:1.35;margin-top:6px">' + esc(w.meaning) + "</div>";
     if (big) inner += '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:10px;font-style:italic">' + esc(w.example) + "</div>";
   }
   return inner;
@@ -353,6 +400,7 @@ function fitCards() {
       if (n.nodeType === 1 && n.className && ("" + n.className).indexOf("card-inner") >= 0) { inner = n; break; }
     }
     if (!inner) continue;
+    if (("" + inner.className).indexOf("scroll-inner") >= 0) continue;
     inner.style.webkitTransform = "";
     inner.style.transform = "";
     inner.style.width = "";
@@ -361,7 +409,7 @@ function fitCards() {
     var needH = inner.scrollHeight, needW = inner.scrollWidth;
     if (!availH || !needH) continue;
     var kScale = Math.min(1, availH / needH, availW > 0 && needW > 0 ? availW / needW : 1);
-    if (kScale < 0.55) kScale = 0.55;
+    if (kScale < 0.72) kScale = 0.72;
     if (kScale < 0.999) {
       inner.style.width = (100 / kScale) + "%";
       inner.style.height = (100 / kScale) + "%";
@@ -394,7 +442,7 @@ function factCardHtml(g, pt, s, big) {
     inner += '<div style="font-size:' + s.factPx + 'px;line-height:1.3;font-weight:600;margin-top:14px">' + esc(f.fact.text) + "</div>" +
       '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:16px;font-style:italic">Ask at dinner: ' + esc(f.fact.dinner) + "</div>";
   } else {
-    inner += '<div class="fact-clamp-3" style="font-size:' + Math.round(s.bodyPx * 0.94) + 'px;line-height:1.35;margin-top:8px">' + esc(f.fact.text) + "</div>";
+    inner += '<div class="fact-clamp-3" style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;line-height:1.35;margin-top:8px">' + esc(f.fact.text) + "</div>";
   }
   return cardHtml(g, inner, big ? "card-strong" : "");
 }
@@ -403,12 +451,12 @@ function verdictTileHtml(g, s, v, whenLabel) {
   var inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--dim)">' + esc(whenLabel) + "</div>";
   if (v) {
     inner += '<div style="font-size:' + verdictPxFor(v.label, Math.round(s.verdictPx * 0.52)) + 'px;line-height:1.08;font-weight:600;text-transform:uppercase;color:' + verdictColor(v) + ';margin-top:8px">' + esc(v.label) + "</div>" +
-      '<div style="font-size:' + Math.round(s.bodyPx * 0.9) + 'px;color:var(--dim);margin-top:6px">' + esc(v.detail) + "</div>";
+      '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:6px">' + esc(v.detail) + "</div>";
   } else {
     inner += '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:8px">Forecast loading…</div>';
   }
     if (WX.now && WX.now.tempF !== null && v) {
-    inner += '<div style="font-size:' + Math.round(s.bodyPx * 0.9) + 'px;color:var(--dim);margin-top:8px">' + WX.now.tempF + UNIT + " now" + (WX.now.cond ? " · " + esc(WX.now.cond) : "") + " · Hi " + WX.now.hiF + "° · Lo " + WX.now.loF + "°</div>";
+    inner += '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:8px">' + WX.now.tempF + UNIT + " now" + (WX.now.cond ? " · " + esc(WX.now.cond) : "") + " · Hi " + WX.now.hiF + "° · Lo " + WX.now.loF + "°</div>";
   }
   return cardHtml(g, inner);
 }
@@ -421,14 +469,14 @@ function weatherCardHtml(g, s, layout) {
     return cardHtml(g, inner);
   }
   if (layout === "strip") {
-    inner = '<div style="font-size:' + Math.round(s.bodyPx * 1.02) + 'px;margin-top:2px"><span style="font-weight:600">' + n.tempF + UNIT + "</span>" +
+    inner = '<div style="font-size:' + s.bodyPx + 'px;margin-top:2px"><span style="font-weight:600">' + n.tempF + UNIT + "</span>" +
       (n.cond ? ' <span style="color:var(--text)">' + esc(n.cond) + "</span>" : "") +
       '<span style="color:var(--dim)"> · Hi ' + n.hiF + "° · Lo " + n.loF + "°</span></div>";
     return cardHtml(g, inner);
   }
-  inner += '<div style="margin-top:6px"><span style="font-size:' + Math.round(s.bodyPx * 1.85) + 'px;font-weight:600;line-height:1">' + n.tempF + "°</span>" +
-    (n.cond ? '<span style="font-size:' + Math.round(s.bodyPx * 0.92) + 'px;color:var(--text);margin-left:10px">' + esc(n.cond) + "</span>" : "") + "</div>" +
-    '<div style="font-size:' + Math.round(s.bodyPx * 0.82) + 'px;color:var(--dim);margin-top:7px">Hi ' + n.hiF + "° · Lo " + n.loF + "°" +
+  inner += '<div style="margin-top:6px"><span style="font-size:' + s.factPx + 'px;font-weight:600;line-height:1">' + n.tempF + "°</span>" +
+    (n.cond ? '<span style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--text);margin-left:10px">' + esc(n.cond) + "</span>" : "") + "</div>" +
+    '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:7px">Hi ' + n.hiF + "° · Lo " + n.loF + "°" +
     (n.rainMax !== null && n.rainMax >= 2 ? " · Rain up to " + n.rainMax + "%" : "") + "</div>";
   return cardHtml(g, inner);
 }
@@ -437,14 +485,14 @@ function tomorrowCardHtml(g, s) {
   var inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--dim)">Tomorrow</div>';
   var tv = WX.tomorrowMorning;
   if (tv) {
-    inner += '<div style="font-size:' + Math.round(s.bodyPx * 1.02) + 'px;font-weight:600;text-transform:uppercase;color:' + verdictColor(tv) + ';margin-top:6px;line-height:1.15">' + esc(tv.label) + "</div>" +
-      '<div style="font-size:' + Math.round(s.bodyPx * 0.8) + 'px;color:var(--dim);margin-top:4px">' + esc(tv.detail) + "</div>";
+    inner += '<div style="font-size:' + s.bodyPx + 'px;font-weight:600;text-transform:uppercase;color:' + verdictColor(tv) + ';margin-top:6px;line-height:1.15">' + esc(tv.label) + "</div>" +
+      '<div style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;color:var(--dim);margin-top:4px">' + esc(tv.detail) + "</div>";
   } else {
     inner += '<div style="font-size:' + s.bodyPx + 'px;color:var(--dim);margin-top:8px">Loading…</div>';
   }
   var first = DATA.eventsTomorrow[0];
   if (first) {
-    inner += '<div class="fact-clamp-3" style="font-size:' + Math.round(s.bodyPx * 0.86) + 'px;margin-top:8px;line-height:1.3">' +
+    inner += '<div class="fact-clamp-3" style="font-size:' + Math.round(s.bodyPx * 0.88) + 'px;margin-top:8px;line-height:1.3">' +
       (first.allDay ? "" : '<span style="font-weight:700;color:var(--accent)">' + esc(formatTimeOfDay(first.start)) + "</span> ") +
       esc(first.title) + "</div>";
   }
@@ -454,7 +502,7 @@ function tomorrowCardHtml(g, s) {
 function dinnerCardHtml(g, pt, s) {
   var f = factForDate(pt.year, pt.month, pt.day);
   var inner = '<div class="kicker" style="font-size:' + kickerPx(s.bodyPx) + 'px;color:var(--accent)">Ask at dinner</div>' +
-    '<div class="fact-clamp-3" style="font-size:' + Math.round(s.bodyPx * 0.98) + 'px;line-height:1.35;margin-top:8px;font-style:italic">' + esc(f.fact.dinner) + "</div>";
+    '<div class="fact-clamp-3" style="font-size:' + s.bodyPx + 'px;line-height:1.35;margin-top:8px;font-style:italic">' + esc(f.fact.dinner) + "</div>";
   return cardHtml(g, inner);
 }
 
@@ -466,33 +514,93 @@ function backdropHtml() {
 }
 
 function gridHtml(view, pt, s, stale) {
+  var G = VARIANTS.b;
   var html = backdropHtml();
   if (view === "departure") {
-    html += heroCardHtml(GEO.info.hero, pt, s);
-    html += clockCardHtml(GEO.info.clock, pt, s, stale);
-    html += tomorrowCardHtml(GEO.info.tomorrow, s);
-    html += photoCardHtml(GEO.info.photo, s);
-    html += calendarCardHtml(GEO.info.calendar, s, [{ label: "Today for the family", evs: DATA.eventsToday }], false);
-    html += trioCardHtml(GEO.info.trio, pt, s, false);
+    html += heroCardHtml(G.info.hero, pt, s);
+    html += clockCardHtml(G.info.clock, pt, s, stale);
+    html += tomorrowCardHtml(G.info.tomorrow, s);
+    html += photoCardHtml(G.info.photo, s);
+    html += calendarCardHtml(G.info.calendar, s, [{ label: "Today for the family", evs: DATA.eventsToday }], false);
+    html += trioCardHtml(G.info.trio, pt, s, false);
   } else if (view === "evening") {
-    html += trioCardHtml(GEO.evening.hero, pt, s, true);
-    html += clockCardHtml(GEO.evening.clock, pt, s, stale);
-    html += wxTomorrowCardHtml(GEO.evening.tomorrow, s);
-    html += photoCardHtml(GEO.evening.photo, s);
-    html += calendarCardHtml(GEO.evening.calendar, s, [
+    html += trioCardHtml(G.evening.hero, pt, s, true);
+    html += clockCardHtml(G.evening.clock, pt, s, stale);
+    html += wxTomorrowCardHtml(G.evening.tomorrow, s);
+    html += photoCardHtml(G.evening.photo, s);
+    html += calendarCardHtml(G.evening.calendar, s, [
       { label: "Today", evs: DATA.eventsToday },
       { label: "Tomorrow", evs: DATA.eventsTomorrow }
     ], false);
-    html += dinnerCardHtml(GEO.evening.trio, pt, s);
+    html += dinnerCardHtml(G.evening.trio, pt, s);
   } else { // idle layout
-    html += photoCardHtml(GEO.idle.photo, s);
-    html += clockCardHtml(GEO.idle.clock, pt, s, stale);
+    html += photoCardHtml(G.idle.photo, s);
+    html += clockCardHtml(G.idle.clock, pt, s, stale);
     var cv = currentVerdict(pt.minutesOfDay);
-    html += verdictTileHtml(GEO.idle.verdict, s, cv.v, cv.when);
-    html += calendarCardHtml(GEO.idle.calendar, s, [{ label: "Today", evs: DATA.eventsToday }], true);
-    html += trioCardHtml(GEO.idle.trio, pt, s, false);
+    html += verdictTileHtml(G.idle.verdict, s, cv.v, cv.when);
+    html += calendarCardHtml(G.idle.calendar, s, [{ label: "Today", evs: DATA.eventsToday }], true);
+    html += trioCardHtml(G.idle.trio, pt, s, false);
   }
   return html;
+}
+
+function gridHtmlA(view, pt, s, stale) {
+  var G = VARIANTS.a;
+  var html = backdropHtml();
+  var cv = currentVerdict(pt.minutesOfDay);
+  if (view === "departure") {
+    html += photoCardHtml(G.info.photo, s);
+    html += clockCardHtml(G.info.clock, pt, s, stale);
+    html += verdictTileHtml(G.info.verdict, s, cv.v, cv.when);
+    html += trioCardHtml(G.info.trio, pt, s, false);
+    html += calendarCardHtml(G.info.calendar, s, [{ label: "Today", evs: DATA.eventsToday }], false);
+  } else if (view === "evening") {
+    html += photoCardHtml(G.evening.photo, s);
+    html += clockCardHtml(G.evening.clock, pt, s, stale);
+    html += wxTomorrowCardHtml(G.evening.tomorrow, s);
+    html += trioCardHtml(G.evening.trio, pt, s, false);
+    html += calendarCardHtml(G.evening.calendar, s, [
+      { label: "Today", evs: DATA.eventsToday },
+      { label: "Tomorrow", evs: DATA.eventsTomorrow }
+    ], false);
+  } else {
+    html += photoCardHtml(G.idle.photo, s);
+    html += clockCardHtml(G.idle.clock, pt, s, stale);
+    html += verdictTileHtml(G.idle.verdict, s, cv.v, cv.when);
+    html += calendarCardHtml(G.idle.calendar, s, [{ label: "Today", evs: DATA.eventsToday }], true);
+    html += trioCardHtml(G.idle.trio, pt, s, false);
+  }
+  return html;
+}
+
+function gridHtmlC(view, pt, s, stale) {
+  var G = VARIANTS.c.all;
+  var html = backdropHtml();
+  var cv = currentVerdict(pt.minutesOfDay);
+  html += clockCardHtml(G.clock, pt, s, stale);
+  html += verdictTileHtml(G.verdict, s, cv.v, cv.when);
+  html += photoCardHtml(G.photo, s);
+  if (view === "evening") {
+    html += calendarCardHtml(G.calendar, s, [
+      { label: "Today", evs: DATA.eventsToday },
+      { label: "Tomorrow", evs: DATA.eventsTomorrow }
+    ], false);
+    html += wxTomorrowCardHtml(G.side, s);
+  } else if (view === "departure") {
+    html += calendarCardHtml(G.calendar, s, [{ label: "Today for the family", evs: DATA.eventsToday }], false);
+    html += tomorrowCardHtml(G.side, s);
+  } else {
+    html += calendarCardHtml(G.calendar, s, [{ label: "Today", evs: DATA.eventsToday }], true);
+    html += weatherCardHtml(G.side, s, "full");
+  }
+  html += trioCardHtml(G.trio, pt, s, false);
+  return html;
+}
+
+function gridHtmlFor(variant, view, pt, s, stale) {
+  if (variant === "a") return gridHtmlA(view, pt, s, stale);
+  if (variant === "c") return gridHtmlC(view, pt, s, stale);
+  return gridHtml(view, pt, s, stale);
 }
 
 function nightHtml(pt, s) {
@@ -506,7 +614,7 @@ function nightHtml(pt, s) {
     '<div class="js-clock" style="font-size:' + s.nightClockPx + 'px;font-weight:700;color:var(--night-text);line-height:1">' + esc(clockLabel(pt)) + "</div>" +
     '<div style="font-size:' + s.bodyPx + 'px;color:var(--night-text);margin-top:10px">' + esc(dateLabel(pt)) + "</div>";
   if (parts.length > 0) {
-    html += '<div style="font-size:' + Math.max(13, Math.round(s.bodyPx * 0.85)) + 'px;color:var(--night-text);margin-top:16px;line-height:1.35">Tomorrow: ' + esc(parts.join(" · ")) + "</div>";
+    html += '<div style="font-size:' + Math.max(13, Math.round(s.bodyPx * 0.88)) + 'px;color:var(--night-text);margin-top:16px;line-height:1.35">Tomorrow: ' + esc(parts.join(" · ")) + "</div>";
   }
   html += "</div></div>";
   return html;
@@ -586,17 +694,17 @@ function render(force) {
   var w = window.innerWidth || 1024;
   var vw = Math.min(w, 1150);
   var s = {
-    verdictPx: Math.round(vw * 0.060),
+    verdictPx: Math.round(vw * 0.058),
     clockPx: Math.round(vw * 0.042),
     nightClockPx: Math.round(vw * 0.09),
-    factPx: Math.round(vw * 0.029),
-    eventPx: Math.round(vw * 0.023),
-    bodyPx: Math.round(vw * 0.020)
+    factPx: Math.round(vw * 0.023),
+    eventPx: Math.round(vw * 0.017),
+    bodyPx: Math.round(vw * 0.017)
   };
   root.style.background = mode === "night" ? "var(--night-bg)" : "var(--bg)";
   if (view === "night") { root.innerHTML = nightHtml(pt, s);
   fitCards(); return; }
-  root.innerHTML = gridHtml(view, pt, s, stale);
+  root.innerHTML = gridHtmlFor(layoutVariant(), view, pt, s, stale);
   startPhotoRotation();
   startTrioCycle();
   fitCards();

@@ -124,3 +124,18 @@ html, body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Scrollable card (calendar): the list swipes, header rows ride along,
+   a soft fade at the bottom hints there is more. */
+.scroll-inner { padding: 0; }
+.scroll-area {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 20px 24px;
+}
+.scroll-area::-webkit-scrollbar { display: none; }
+.scroll-fade {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+  background: linear-gradient(to bottom, rgba(8, 11, 20, 0), rgba(8, 11, 20, 0.45));
+  pointer-events: none;
+}
