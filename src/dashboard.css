@@ -139,3 +139,23 @@ html, body {
   background: linear-gradient(to bottom, rgba(8, 11, 20, 0), rgba(8, 11, 20, 0.45));
   pointer-events: none;
 }
+
+/* Daily Three: three pages in one card — auto-advances every 45s and
+   swipes vertically with snap; dots track the page. */
+.trio-inner { padding: 0; }
+.trio-scroll {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y mandatory;
+}
+.trio-scroll::-webkit-scrollbar { display: none; }
+.trio-page {
+  min-height: 100%; box-sizing: border-box;
+  padding: 20px 24px 26px;
+  scroll-snap-align: start;
+}
+.trio-dots { position: absolute; right: 16px; bottom: 12px; }
+.trio-dots span {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-left: 6px;
+}

@@ -379,59 +379,51 @@ function trioPanelInner(kind, pt, s, big) {
 }
 function trioCardHtml(g, pt, s, big) {
   var kinds = ["fact", "quote", "word"];
-  var panels = "";
+  var pages = "";
   for (var i = 0; i < 3; i++) {
-    panels += '<div id="trioPanel' + i + '" style="display:' + (i === trioState.idx ? "block" : "none") + '">' + trioPanelInner(kinds[i], pt, s, big) + "</div>";
+    pages += '<div class="trio-page">' + trioPanelInner(kinds[i], pt, s, big) + "</div>";
   }
-  var dots = '<div style="margin-top:10px">';
+  var dots = '<div class="trio-dots">';
   for (var d = 0; d < 3; d++) {
-    dots += '<span id="trioDot' + d + '" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:' + (d === trioState.idx ? "var(--accent)" : "rgba(255,255,255,0.25)") + '"></span>';
+    dots += '<span id="trioDot' + d + '" style="background:' + (d === trioState.idx ? "var(--accent)" : "rgba(255,255,255,0.25)") + '"></span>';
   }
   dots += "</div>";
-  return cardHtml(g, panels + dots, big ? "card-strong" : "");
+  return '<div class="card' + (big ? " card-strong" : "") + '" style="' + geoStyle(g) + '"><div class="card-inner trio-inner">' +
+    '<div class="trio-scroll" id="trioScroll">' + pages + "</div>" + dots + "</div></div>";
 }
-
-function fitCards() {
-  var cards = document.getElementsByClassName("card");
-  for (var c = 0; c < cards.length; c++) {
-    var inner = null;
-    for (var k = 0; k < cards[c].childNodes.length; k++) {
-      var n = cards[c].childNodes[k];
-      if (n.nodeType === 1 && n.className && ("" + n.className).indexOf("card-inner") >= 0) { inner = n; break; }
-    }
-    if (!inner) continue;
-    if (("" + inner.className).indexOf("scroll-inner") >= 0) continue;
-    inner.style.webkitTransform = "";
-    inner.style.transform = "";
-    inner.style.width = "";
-    inner.style.height = "";
-    var availH = inner.clientHeight, availW = inner.clientWidth;
-    var needH = inner.scrollHeight, needW = inner.scrollWidth;
-    if (!availH || !needH) continue;
-    var kScale = Math.min(1, availH / needH, availW > 0 && needW > 0 ? availW / needW : 1);
-    if (kScale < 0.72) kScale = 0.72;
-    if (kScale < 0.999) {
-      inner.style.width = (100 / kScale) + "%";
-      inner.style.height = (100 / kScale) + "%";
-      inner.style.webkitTransformOrigin = "top left";
-      inner.style.transformOrigin = "top left";
-      inner.style.webkitTransform = "scale(" + kScale + ")";
-      inner.style.transform = "scale(" + kScale + ")";
-    }
+function trioGoTo(idx, smooth) {
+  trioState.idx = ((idx % 3) + 3) % 3;
+  var sc = document.getElementById("trioScroll");
+  if (sc && sc.clientHeight) {
+    var target = trioState.idx * sc.clientHeight;
+    if (smooth && sc.scrollTo) { try { sc.scrollTo({ top: target, behavior: "smooth" }); } catch (e) { sc.scrollTop = target; } }
+    else sc.scrollTop = target;
+  }
+  for (var i = 0; i < 3; i++) {
+    var dot = document.getElementById("trioDot" + i);
+    if (dot) dot.style.background = (i === trioState.idx) ? "#f2b134" : "rgba(255,255,255,0.25)";
   }
 }
-
+function wireTrioScroll() {
+  var sc = document.getElementById("trioScroll");
+  if (!sc || sc.getAttribute("data-wired")) return;
+  sc.setAttribute("data-wired", "1");
+  sc.scrollTop = trioState.idx * (sc.clientHeight || 0);
+  var pending = null;
+  sc.onscroll = function () {
+    if (pending) window.clearTimeout(pending);
+    pending = window.setTimeout(function () {
+      if (!sc.clientHeight) return;
+      var idx = Math.round(sc.scrollTop / sc.clientHeight);
+      if (idx !== trioState.idx && idx >= 0 && idx <= 2) trioGoTo(idx, false);
+    }, 120);
+  };
+}
 function startTrioCycle() {
+  wireTrioScroll();
   if (trioState.timer) return;
   trioState.timer = window.setInterval(function () {
-    trioState.idx = (trioState.idx + 1) % 3;
-    for (var i = 0; i < 3; i++) {
-      var el = document.getElementById("trioPanel" + i);
-      if (el) el.style.display = (i === trioState.idx) ? "block" : "none";
-      var dot = document.getElementById("trioDot" + i);
-      if (dot) dot.style.background = (i === trioState.idx) ? "#f2b134" : "rgba(255,255,255,0.25)";
-    }
-    fitCards();
+    trioGoTo(trioState.idx + 1, true);
   }, 45000);
 }
 
